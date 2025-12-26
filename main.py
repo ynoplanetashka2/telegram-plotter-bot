@@ -3,7 +3,7 @@ import asyncio
 import csv
 import pandas as pd
 from dotenv import load_dotenv
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, Application, MessageHandler, filters
+from telegram.ext import CommandHandler, ContextTypes, Application, MessageHandler, filters
 from telegram import Update, BotCommand
 from io import BytesIO
 import matplotlib.pyplot as plt
@@ -35,6 +35,7 @@ async def plot_scatter(update: Update, _context) -> None:
   plt.ylabel("Y")
   fig_buffer = BytesIO()
   plt.savefig(fig_buffer, format='png')
+  plt.close()
   fig_buffer.flush()
   fig_buffer.seek(0)
 
@@ -52,6 +53,7 @@ async def plot_hist(update: Update, _context) -> None:
   plt.xlabel("X")
   fig_buffer = BytesIO()
   plt.savefig(fig_buffer, format='png')
+  plt.close()
   fig_buffer.flush()
   fig_buffer.seek(0)
 
@@ -73,37 +75,39 @@ async def plot_heatmap(update: Update, _context) -> None:
 
   fig_buffer = BytesIO()
   plt.savefig(fig_buffer, format='png')
+  plt.close()
   fig_buffer.flush()
   fig_buffer.seek(0)
 
   await message.reply_document(fig_buffer, filename="heatmap.png")
 
 
-def setup_commands(app: Application) -> None:
+async def setup_commands(app: Application) -> None:
   app.add_handler(MessageHandler(
     filters.CaptionRegex(r'^/set_dataset$') & filters.Document.TEXT,
     set_dataset
   ))
-  # app.bot.set_my_commands([
-  #   BotCommand("set_dataset [attached_file]", "set a dataset"),
-  #   BotCommand("plot_scatter", "plot a scatter"),
-  #   BotCommand("plot_hist", "plot a histogram"),
-  #   BotCommand("plot_heatmap", "plot a heatmap")
-  # ])
+  await app.bot.set_my_commands([
+    BotCommand("set_dataset", "set a dataset from attached file"),
+    BotCommand("plot_scatter", "plot a scatter"),
+    BotCommand("plot_hist", "plot a histogram"),
+    BotCommand("plot_heatmap", "plot a heatmap")
+  ])
   app.add_handler(CommandHandler("plot_scatter", plot_scatter))
   app.add_handler(CommandHandler("plot_hist", plot_hist))
   app.add_handler(CommandHandler("plot_heatmap", plot_heatmap))
+  print("command setup finished")
 
 def main():
   load_dotenv()
   BOT_TOKEN = os.environ["BOT_TOKEN"]
   app = (
-    ApplicationBuilder()
+    Application
+    .builder()
     .token(BOT_TOKEN)
+    .post_init(setup_commands)
     .build()
   )
-
-  setup_commands(app)
   
   app.run_polling()
 
